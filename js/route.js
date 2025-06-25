@@ -46,11 +46,36 @@ class RouteNavigationApp {
             this.routeData = decodedData;
             this.portaria = validation.portaria;
             this.doca = validation.doca;
+
+            // VALIDAÇÃO CRÍTICA DE COORDENADAS
+            this.validateCoordinates();
+            
             this.initializeInterface();
         } catch (error) {
             console.error('Erro ao processar dados da rota:', error);
             this.showError('Erro de Processamento', 'Não foi possível processar os dados da rota. Verifique o QR Code.');
         }
+    }
+
+    // NOVA FUNÇÃO: Validação completa de coordenadas
+    validateCoordinates() {
+        const validate = (coords, name) => {
+            if (!coords) {
+                throw new Error(`Coordenadas da ${name} não definidas`);
+            }
+            if (coords.latitude === null || coords.longitude === null) {
+                throw new Error(`Coordenadas da ${name} contêm valores nulos`);
+            }
+            if (typeof coords.latitude !== 'number' || typeof coords.longitude !== 'number') {
+                throw new Error(`Coordenadas da ${name} não são números`);
+            }
+            if (isNaN(coords.latitude) || isNaN(coords.longitude)) {
+                throw new Error(`Coordenadas da ${name} são inválidas (NaN)`);
+            }
+        };
+
+        validate(this.portaria.coordenadas, 'portaria');
+        validate(this.doca.coordenadas, 'doca');
     }
 
     initializeInterface() {
@@ -78,8 +103,18 @@ class RouteNavigationApp {
                 throw new Error('Chave do Azure Maps não configurada');
             }
             
+            // VALIDAÇÃO DUPLA DE COORDENADAS
+            if (!this.portaria.coordenadas || !this.doca.coordenadas) {
+                throw new Error('Coordenadas não disponíveis para inicialização do mapa');
+            }
+            
             const centerLat = (this.portaria.coordenadas.latitude + this.doca.coordenadas.latitude) / 2;
             const centerLng = (this.portaria.coordenadas.longitude + this.doca.coordenadas.longitude) / 2;
+            
+            // VALIDAÇÃO DE VALORES NUMÉRICOS
+            if (isNaN(centerLat) || isNaN(centerLng)) {
+                throw new Error('Coordenadas do centro do mapa são inválidas');
+            }
             
             this.map = new atlas.Map('route-map', {
                 center: [centerLng, centerLat],
@@ -146,6 +181,11 @@ class RouteNavigationApp {
     }
 
     addMarkers() {
+        // VALIDAÇÃO FINAL DE COORDENADAS
+        if (!this.portaria.coordenadas || !this.doca.coordenadas) {
+            throw new Error('Coordenadas indisponíveis para adicionar marcadores');
+        }
+        
         const startMarker = new atlas.data.Feature(
             new atlas.data.Point([this.portaria.coordenadas.longitude, this.portaria.coordenadas.latitude]), 
             {
@@ -169,11 +209,11 @@ class RouteNavigationApp {
     async calculateRoute() {
         this.updateLoadingMessage('Calculando melhor rota...');
         try {
+            // VALIDAÇÃO REDUNDANTE
             if (!this.portaria.coordenadas || !this.doca.coordenadas) {
-                throw new Error("Coordenadas indefinidas em config.js");
+                throw new Error("Coordenadas indefinidas");
             }
             
-            // CORREÇÃO: Usar ordem latitude, longitude conforme necessário
             const start = `${this.portaria.coordenadas.latitude},${this.portaria.coordenadas.longitude}`;
             const end = `${this.doca.coordenadas.latitude},${this.doca.coordenadas.longitude}`;
             
@@ -222,6 +262,11 @@ class RouteNavigationApp {
     }
     
     createDirectRoute() {
+        if (!this.portaria.coordenadas || !this.doca.coordenadas) {
+            console.error('Não é possível criar rota direta: coordenadas ausentes');
+            return;
+        }
+        
         const startCoords = [this.portaria.coordenadas.longitude, this.portaria.coordenadas.latitude];
         const endCoords = [this.doca.coordenadas.longitude, this.doca.coordenadas.latitude];
         
@@ -364,24 +409,20 @@ class RouteNavigationApp {
     
     async requestUserLocation() {
         try {
-            // Passo 1: Verificar suporte do navegador
             if (!navigator.geolocation) {
-                throw new Error("Geolocalização não suportada");
+                throw new Error("Geolocalização não suportada pelo navegador");
             }
-    
-            // Passo 2: Configurar opções otimizadas
-            const geoOptions = {
+
+            const options = {
                 enableHighAccuracy: true,
-                timeout: 5000,    // 5 segundos
-                maximumAge: 0      // Sem cache
+                timeout: 5000,
+                maximumAge: 0
             };
-    
-            // Passo 3: Usar Promise para controle do timeout
+
             const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, geoOptions);
+                navigator.geolocation.getCurrentPosition(resolve, reject, options);
             });
-    
-            // Passo 4: Atualizar estado com nova localização
+
             this.userPosition = {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude
@@ -391,39 +432,21 @@ class RouteNavigationApp {
             this.startLocationTracking();
             
         } catch (error) {
-            console.warn('Erro de geolocalização:', error);
+            console.warn('Erro ao obter localização:', error);
             
-            // Tratamento detalhado por código de erro
-            switch(error.code) {
-                case 1: // PERMISSION_DENIED
-                    notifications.warning(
-                        'Permissão negada. Ative a localização nas configurações do navegador 🔒'
-                    );
-                    break;
-                    
-                case 2: // POSITION_UNAVAILABLE
-                    notifications.warning(
-                        'Serviço de localização indisponível. Verifique:' +
-                        '\n• Conexão com internet 🌐' +
-                        '\n• GPS ativado 📡' +
-                        '\n• Permissões do sistema 🔑'
-                    );
-                    break;
-                    
-                case 3: // TIMEOUT
-                    notifications.info(
-                        'Tempo de busca excedido. A navegação continuará sem localização em tempo real ⏱️'
-                    );
-                    break;
-                    
-                default:
-                    notifications.info(
-                        'Localização não disponível. A rota será exibida normalmente 🗺️'
-                    );
+            // Mensagens específicas por código de erro
+            let message = 'Não foi possível obter sua localização. ';
+            if (error.code === 1) {
+                message += 'Permissão negada pelo usuário.';
+            } else if (error.code === 2) {
+                message += 'Serviço de localização indisponível.';
+            } else if (error.code === 3) {
+                message += 'Tempo de busca excedido.';
             }
+            
+            notifications.warning(message);
         }
     }
-
     
     addUserLocationMarker() {
         if (!this.userPosition || !this.datasource) return;
@@ -470,10 +493,6 @@ class RouteNavigationApp {
             toggleBtn.addEventListener('click', () => {
                 this.toggleInstructionsPanel();
             });
-        }
-        
-        if (this.map) {
-            this.map.events.add('click', (e) => {});
         }
     }
     
