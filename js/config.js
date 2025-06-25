@@ -5,7 +5,7 @@
 const AZURE_MAPS_CONFIG = {
     // IMPORTANTE: Substitua pela sua chave do Azure Maps
     // Obtenha em: https://portal.azure.com (Azure Maps Account > Authentication)
-    subscriptionKey: 'SUA_CHAVE_AZURE_MAPS_AQUI',
+    subscriptionKey: '8sBYyJ4uUjjLFYAlrOPHrkPOe5lFZmrDgrFLn8tBJldpqaSZIfN9JQQJ99BFAC8vTIn91W9IAAAgAZMP3jBK',
 
     // Configurações de localização
     language: 'pt-BR',
@@ -27,11 +27,11 @@ const AZURE_MAPS_CONFIG = {
 // Configuração geral do sistema
 const SYSTEM_CONFIG = {
     // Nome da empresa (será exibido no sistema)
-    companyName: "SUA EMPRESA LTDA",
+    companyName: "BASF",
 
     // URL base onde o sistema está hospedado
     // IMPORTANTE: Atualize com a URL real após hospedagem
-    baseUrl: "https://seuusuario.github.io/sistema-rotas",
+    baseUrl: "https://peottabasf.github.io/GPSv2",
 
     // Configurações de QR Code
     qrCodeSize: 256,
