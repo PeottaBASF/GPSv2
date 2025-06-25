@@ -95,53 +95,64 @@ class RouteNavigationApp {
     initializeMap() {
         this.updateLoadingMessage('Inicializando mapa...');
         try {
+            // 1. VALIDAÇÃO DO SDK
             if (typeof atlas === 'undefined') {
-                throw new Error('Azure Maps SDK não carregado');
+                throw new Error('Azure Maps SDK não carregado. Verifique: 1. Conexão com internet 2. Bloqueadores de scripts');
             }
-            
+    
+            // 2. VALIDAÇÃO DE CHAVE
             if (!AZURE_MAPS_CONFIG.subscriptionKey || AZURE_MAPS_CONFIG.subscriptionKey === 'SUA_CHAVE_AZURE_MAPS_AQUI') {
-                throw new Error('Chave do Azure Maps não configurada');
+                throw new Error('Chave do Azure Maps não configurada em config.js');
             }
-            
-            // VALIDAÇÃO DUPLA DE COORDENADAS
-            if (!this.portaria.coordenadas || !this.doca.coordenadas) {
-                throw new Error('Coordenadas não disponíveis para inicialização do mapa');
-            }
-            
-            const centerLat = (this.portaria.coordenadas.latitude + this.doca.coordenadas.latitude) / 2;
+    
+            // 3. VALIDAÇÃO DE COORDENADAS (CRÍTICA)
+            const coordValidator = (coords, name) => {
+                if (!coords) throw new Error(`Coordenadas da ${name} indefinidas`);
+                if (coords.latitude === null || coords.longitude === null) throw new Error(`Coordenadas da ${name} contêm valores nulos`);
+                if (typeof coords.latitude !== 'number' || typeof coords.longitude !== 'number') throw new Error(`Coordenadas da ${name} não são números`);
+            };
+            coordValidator(this.portaria.coordenadas, 'portaria');
+            coordValidator(this.doca.coordenadas, 'doca');
+    
+            // 4. FORMATO CORRETO: [longitude, latitude]
             const centerLng = (this.portaria.coordenadas.longitude + this.doca.coordenadas.longitude) / 2;
-            
-            // VALIDAÇÃO DE VALORES NUMÉRICOS
-            if (isNaN(centerLat) || isNaN(centerLng)) {
-                throw new Error('Coordenadas do centro do mapa são inválidas');
-            }
-            
+            const centerLat = (this.portaria.coordenadas.latitude + this.doca.coordenadas.latitude) / 2;
+    
+            // 5. ESTILO ALTERNATIVO (evita bugs)
+            const safeStyle = atlas.StyleOptions.road; // Estático para evitar nulls
+    
             this.map = new atlas.Map('route-map', {
                 center: [centerLng, centerLat],
                 zoom: 16,
-                language: AZURE_MAPS_CONFIG.language,
-                view: AZURE_MAPS_CONFIG.view,
-                style: AZURE_MAPS_CONFIG.style,
+                style: safeStyle, // Usa estilo pré-definido
                 authOptions: {
                     authType: 'subscriptionKey',
                     subscriptionKey: AZURE_MAPS_CONFIG.subscriptionKey
                 }
             });
-            
-            this.map.events.add('ready', () => {
-                this.onMapReady();
-            });
-            
+    
+            // 6. CONTROLE DE ERROS EM EVENTOS
             this.map.events.add('error', (error) => {
-                console.error('Erro no mapa:', error);
-                this.showError('Erro no Mapa', 'Falha ao carregar o mapa. Verifique sua conexão.');
+                console.error('Erro interno do mapa:', error);
+                this.showError('Erro no Mapa', 'Falha técnica. Atualize a página ou tente mais tarde.');
+            });
+    
+            this.map.events.add('ready', () => {
+                try {
+                    this.onMapReady();
+                } catch (e) {
+                    console.error('Falha no onMapReady:', e);
+                    this.showError('Erro de Configuração', 'Falha ao carregar camadas do mapa');
+                }
             });
             
         } catch (error) {
-            console.error('Erro ao inicializar mapa:', error);
-            this.showError('Erro de Inicialização', error.message);
+            console.error('Erro na inicialização:', error);
+            this.showError('Erro Crítico', error.message);
         }
     }
+
+
 
     onMapReady() {
         this.updateLoadingMessage('Configurando camadas do mapa...');
