@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navegação para Caminhoneiros</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Azure Maps CSS -->
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" type="text/css">
+
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="route-page">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="d-flex flex-column justify-content-center align-items-center">
+        <div class="text-center">
+            <div class="spinner-border text-light mb-4" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <h2 class="text-light mb-3">🚛 Carregando sua Rota</h2>
+            <p class="text-light-50" id="loading-message">Processando dados...</p>
+        </div>
+    </div>
+
+    <!-- Error Screen -->
+    <div id="error-screen" class="d-none">
+        <div class="container py-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <h3>⚠️ Erro de Acesso</h3>
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="alert alert-danger">
+                                <h4 id="error-title">Link Inválido ou Expirado</h4>
+                                <p id="error-message">Este QR Code pode ter expirado ou os dados estão corrompidos.</p>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary" onclick="window.location.reload()">
+                                    🔄 Tentar Novamente
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="history.back()">
+                                    ← Voltar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Route Interface -->
+    <div id="route-interface" class="d-none">
+        <!-- Header com informações do caminhão -->
+        <div class="bg-primary text-white py-2">
+            <div class="container-fluid">
+                <div class="row align-items-center" id="route-info">
+                    <div class="col-md-3">
+                        <strong>🚛 <span id="truck-plate-display">-</span></strong>
+                    </div>
+                    <div class="col-md-3">
+                        <small>Motorista: <span id="driver-name-display">-</span></small>
+                    </div>
+                    <div class="col-md-3">
+                        <small>Destino: <span id="dock-name-display">-</span></small>
+                    </div>
+                    <div class="col-md-3 text-md-end">
+                        <small class="countdown-timer" id="expiry-countdown">⏰ --:--:--</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Container do mapa -->
+        <div id="map-container">
+            <div id="route-map"></div>
+
+            <!-- Painel de navegação -->
+            <div id="navigation-panel" class="position-fixed bottom-0 start-0 end-0 bg-white border-top">
+                <div class="container-fluid p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">📍 Instruções de Navegação</h5>
+                        <button class="btn btn-sm btn-outline-primary" id="toggle-instructions">
+                            ▼
+                        </button>
+                    </div>
+                    <div id="navigation-instructions">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><strong>Distância Total:</strong> <span id="total-distance">Calculando...</span></span>
+                            <span><strong>Tempo Estimado:</strong> <span id="total-time">Calculando...</span></span>
+                        </div>
+                        <div id="step-by-step" class="max-height-150 overflow-auto">
+                            <div class="text-center text-muted">
+                                Carregando instruções...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="info-toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Informação</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-message">
+                Mensagem do sistema
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/route.js"></script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gerenciamento de Rotas para Caminhoneiros</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Azure Maps CSS (apenas v3) -->
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" type="text/css">
+
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="bg-primary text-white py-3">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1>Sistema de Gerenciamento de Rotas</h1>
+                    <p class="mb-0">Painel do Porteiro</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <img src="img/logo.png" alt="Logo da Empresa" class="logo" id="company-logo" 
+                         onerror="this.style.display='none'">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container my-4">
+        <!-- Alert de status do sistema -->
+        <div id="system-status" class="alert alert-info alert-dismissible fade show" role="alert">
+            <strong>🔧 Status do Sistema:</strong> <span id="status-message">Verificando configuração...</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3>Dados do Caminhão e Motorista</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="truck-form">
+                            <div class="mb-3">
+                                <label for="truck-plate" class="form-label">Placa do Caminhão *</label>
+                                <input type="text" class="form-control" id="truck-plate" required 
+                                       placeholder="ABC1234" maxlength="8">
+                                <div class="invalid-feedback"></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="truck-model" class="form-label">Modelo do Caminhão</label>
+                                <input type="text" class="form-control" id="truck-model" 
+                                       placeholder="Ex: Volvo FH" maxlength="50">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="company-name" class="form-label">Transportadora</label>
+                                <input type="text" class="form-control" id="company-name" 
+                                       placeholder="Nome da transportadora" maxlength="100">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="driver-name" class="form-label">Nome do Motorista *</label>
+                                <input type="text" class="form-control" id="driver-name" required 
+                                       placeholder="Nome completo" maxlength="100">
+                                <div class="invalid-feedback"></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="driver-document" class="form-label">CPF/CNPJ do Motorista</label>
+                                <input type="text" class="form-control" id="driver-document" 
+                                       placeholder="CPF ou CNPJ" maxlength="18">
+                                <div class="invalid-feedback"></div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="entry-gate" class="form-label">Portaria de Entrada *</label>
+                                    <select class="form-select" id="entry-gate" required>
+                                        <option value="" selected disabled>Selecione...</option>
+                                    </select>
+                                    <div class="invalid-feedback"></div>
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+                                    <label for="destination-dock" class="form-label">Doca de Destino *</label>
+                                    <select class="form-select" id="destination-dock" required>
+                                        <option value="" selected disabled>Selecione...</option>
+                                    </select>
+                                    <div class="invalid-feedback"></div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="expiry-time" class="form-label">Tempo de Expiração do Link</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="expiry-time" 
+                                           min="1" max="24" value="1">
+                                    <span class="input-group-text">horas</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100" id="generate-btn">
+                                <span class="spinner-border spinner-border-sm d-none" id="loading-spinner"></span>
+                                Gerar QR Code
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4 qr-card" id="qrcode-container" style="display:none;">
+                    <div class="card-header bg-success text-white">
+                        <h3>QR Code Gerado</h3>
+                    </div>
+                    <div class="card-body text-center">
+                        <div id="qrcode" class="mb-3"></div>
+                        <p>Escaneie este QR Code ou utilize o link abaixo:</p>
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="qr-link" readonly>
+                            <button class="btn btn-outline-secondary" type="button" id="copy-link">
+                                📋 Copiar
+                            </button>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" id="whatsapp-share">
+                                📱 Compartilhar via WhatsApp
+                            </button>
+                        </div>
+                        <div class="alert alert-info mt-3">
+                            <p class="mb-1">⏰ Este QR Code expirará em:</p>
+                            <strong id="expiry-message">1 hora</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="recent-codes">
+                    <div class="card-header bg-info text-white">
+                        <h3>QR Codes Recentes</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Placa</th>
+                                        <th>Motorista</th>
+                                        <th>Doca</th>
+                                        <th>Expiração</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-codes-list">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">
+                                            Nenhum QR Code gerado ainda
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-dark text-white py-3 mt-5">
+        <div class="container text-center">
+            <p class="mb-0">&copy; 2025 Sistema de Gerenciamento de Rotas para Caminhoneiros</p>
+        </div>
+    </footer>
+
+    <!-- Scripts - ORDEM IMPORTANTE -->
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- QRCode.js -->
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@master/qrcode.min.js"></script>
+
+    <!-- Azure Maps JS (apenas v3) -->
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+
+    <!-- Scripts do sistema -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
