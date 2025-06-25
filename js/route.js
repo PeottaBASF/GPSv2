@@ -364,12 +364,24 @@ class RouteNavigationApp {
     
     async requestUserLocation() {
         try {
-            const position = await getCurrentPosition({
+            // Passo 1: Verificar suporte do navegador
+            if (!navigator.geolocation) {
+                throw new Error("Geolocalização não suportada");
+            }
+    
+            // Passo 2: Configurar opções otimizadas
+            const geoOptions = {
                 enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 60000
+                timeout: 5000,    // 5 segundos
+                maximumAge: 0      // Sem cache
+            };
+    
+            // Passo 3: Usar Promise para controle do timeout
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, geoOptions);
             });
-            
+    
+            // Passo 4: Atualizar estado com nova localização
             this.userPosition = {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude
@@ -379,10 +391,39 @@ class RouteNavigationApp {
             this.startLocationTracking();
             
         } catch (error) {
-            console.warn('Erro ao obter localização:', error);
-            notifications.info('Não foi possível obter sua localização. A navegação ainda funcionará.');
+            console.warn('Erro de geolocalização:', error);
+            
+            // Tratamento detalhado por código de erro
+            switch(error.code) {
+                case 1: // PERMISSION_DENIED
+                    notifications.warning(
+                        'Permissão negada. Ative a localização nas configurações do navegador 🔒'
+                    );
+                    break;
+                    
+                case 2: // POSITION_UNAVAILABLE
+                    notifications.warning(
+                        'Serviço de localização indisponível. Verifique:' +
+                        '\n• Conexão com internet 🌐' +
+                        '\n• GPS ativado 📡' +
+                        '\n• Permissões do sistema 🔑'
+                    );
+                    break;
+                    
+                case 3: // TIMEOUT
+                    notifications.info(
+                        'Tempo de busca excedido. A navegação continuará sem localização em tempo real ⏱️'
+                    );
+                    break;
+                    
+                default:
+                    notifications.info(
+                        'Localização não disponível. A rota será exibida normalmente 🗺️'
+                    );
+            }
         }
     }
+
     
     addUserLocationMarker() {
         if (!this.userPosition || !this.datasource) return;
