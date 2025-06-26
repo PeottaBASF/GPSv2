@@ -13,7 +13,7 @@ const CONFIG = {
     entryGates: {
         1: {
             name: 'Portaria Principal',
-            coordinates: { lat: -23.5505, lng: -46.6333 }
+            coordinates: { lat: -23.7490, lng: -46.5643 }
         },
         2: {
             name: 'Portaria Secundária', 
@@ -25,7 +25,7 @@ const CONFIG = {
     destinationDocks: {
         1: {
             name: 'Doca A',
-            coordinates: { lat: -23.5525, lng: -46.6353 }
+            coordinates: { lat: -23.7477, lng: -46.5611 }
         },
         2: {
             name: 'Doca B',
