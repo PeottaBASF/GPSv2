@@ -1,129 +1,333 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navegação para Caminhoneiros</title>
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Azure Maps CSS -->
-    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" type="text/css">
-
-    <!-- Estilos personalizados -->
-    <link rel="stylesheet" href="css/style.css">
+    <title>Rota GPS - Sistema de Navegação</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css">
+    <style>
+        .loading { display: none; }
+        .error { display: none; }
+        .route-info { display: none; }
+        #map { height: 400px; width: 100%; }
+        .status-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-success { background-color: #28a745; }
+        .status-error { background-color: #dc3545; }
+        .status-warning { background-color: #ffc107; }
+    </style>
 </head>
-<body class="route-page">
-    <!-- Loading Screen -->
-    <div id="loading-screen" class="d-flex flex-column justify-content-center align-items-center">
-        <div class="text-center">
-            <div class="spinner-border text-light mb-4" role="status">
+<body>
+    <div class="container mt-4">
+        <!-- Loading Section -->
+        <div class="loading text-center" id="loadingSection">
+            <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Carregando...</span>
             </div>
-            <h2 class="text-light mb-3">🚛 Carregando sua Rota</h2>
-            <p class="text-light-50" id="loading-message">Processando dados...</p>
+            <h3 class="mt-3">🚛 Carregando sua Rota</h3>
+            <p>Processando dados...</p>
         </div>
-    </div>
 
-    <!-- Error Screen -->
-    <div id="error-screen" class="d-none">
-        <div class="container py-5">
-            <div class="row justify-content-center">
+        <!-- Error Section -->
+        <div class="error text-center" id="errorSection">
+            <h3>⚠️ Erro de Acesso</h3>
+            <h4>Link Inválido ou Expirado</h4>
+            <p>Este QR Code pode ter expirado ou os dados estão corrompidos.</p>
+            <button class="btn btn-primary" onclick="retryLoad()">🔄 Tentar Novamente</button>
+            <button class="btn btn-secondary" onclick="goBack()">← Voltar</button>
+        </div>
+
+        <!-- Route Info Section -->
+        <div class="route-info" id="routeSection">
+            <div class="row">
                 <div class="col-md-6">
-                    <div class="card border-danger">
-                        <div class="card-header bg-danger text-white">
-                            <h3>⚠️ Erro de Acesso</h3>
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Informações da Rota</h5>
                         </div>
-                        <div class="card-body text-center">
-                            <div class="alert alert-danger">
-                                <h4 id="error-title">Link Inválido ou Expirado</h4>
-                                <p id="error-message">Este QR Code pode ter expirado ou os dados estão corrompidos.</p>
-                            </div>
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-primary" onclick="window.location.reload()">
-                                    🔄 Tentar Novamente
-                                </button>
-                                <button class="btn btn-outline-secondary" onclick="history.back()">
-                                    ← Voltar
-                                </button>
-                            </div>
+                        <div class="card-body">
+                            <p><strong>Motorista:</strong> <span id="driverName">-</span></p>
+                            <p><strong>Placa:</strong> <span id="truckPlate">-</span></p>
+                            <p><strong>Destino:</strong> <span id="destination">-</span></p>
+                            <p><strong>⏰ Expira em:</strong> <span id="expiryTime">--:--:--</span></p>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Route Interface -->
-    <div id="route-interface" class="d-none">
-        <!-- Header com informações do caminhão -->
-        <div class="bg-primary text-white py-2">
-            <div class="container-fluid">
-                <div class="row align-items-center" id="route-info">
-                    <div class="col-md-3">
-                        <strong>🚛 <span id="truck-plate-display">-</span></strong>
-                    </div>
-                    <div class="col-md-3">
-                        <small>Motorista: <span id="driver-name-display">-</span></small>
-                    </div>
-                    <div class="col-md-3">
-                        <small>Destino: <span id="dock-name-display">-</span></small>
-                    </div>
-                    <div class="col-md-3 text-md-end">
-                        <small class="countdown-timer" id="expiry-countdown">⏰ --:--:--</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Container do mapa -->
-        <div id="map-container">
-            <div id="route-map"></div>
-
-            <!-- Painel de navegação -->
-            <div id="navigation-panel" class="position-fixed bottom-0 start-0 end-0 bg-white border-top">
-                <div class="container-fluid p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h5 class="mb-0">📍 Instruções de Navegação</h5>
-                        <button class="btn btn-sm btn-outline-primary" id="toggle-instructions">
-                            ▼
-                        </button>
-                    </div>
-                    <div id="navigation-instructions">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span><strong>Distância Total:</strong> <span id="total-distance">Calculando...</span></span>
-                            <span><strong>Tempo Estimado:</strong> <span id="total-time">Calculando...</span></span>
+                    
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5>📍 Informações de Navegação</h5>
                         </div>
-                        <div id="step-by-step" class="max-height-150 overflow-auto">
-                            <div class="text-center text-muted">
-                                Carregando instruções...
-                            </div>
+                        <div class="card-body">
+                            <p><strong>Distância Total:</strong> <span id="totalDistance">Calculando...</span></p>
+                            <p><strong>Tempo Estimado:</strong> <span id="estimatedTime">Calculando...</span></p>
+                            <div id="instructions">Carregando instruções...</div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Container -->
-    <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div id="info-toast" class="toast" role="alert">
-            <div class="toast-header">
-                <strong class="me-auto">Informação</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body" id="toast-message">
-                Mensagem do sistema
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Mapa de Navegação</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="map"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
-    <script src="js/config.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/route.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+    <script src="config.js"></script>
+    
+    <script>
+        let map = null;
+        let routeData = null;
+        let expiryInterval = null;
+
+        // Função para decodificar dados do QR Code
+        function decodeRouteData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedData = urlParams.get('data');
+            
+            if (!encodedData) {
+                throw new Error('Dados não encontrados na URL');
+            }
+            
+            try {
+                const decodedData = atob(encodedData);
+                return JSON.parse(decodedData);
+            } catch (error) {
+                throw new Error('Erro ao decodificar dados: ' + error.message);
+            }
+        }
+
+        // Função para verificar se o link expirou
+        function isExpired(data) {
+            const now = Date.now();
+            return now > data.expiryDate;
+        }
+
+        // Função para mostrar seção
+        function showSection(sectionId) {
+            document.querySelectorAll('.loading, .error, .route-info').forEach(el => {
+                el.style.display = 'none';
+            });
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        // Função para popular informações
+        function populateRouteInfo(data) {
+            document.getElementById('driverName').textContent = data.driverName || '-';
+            document.getElementById('truckPlate').textContent = data.truckPlate || '-';
+            
+            const dock = CONFIG.destinationDocks[data.destinationDockId];
+            document.getElementById('destination').textContent = dock ? dock.name : 'Doca não encontrada';
+            
+            // Iniciar contador de expiração
+            startExpiryTimer(data.expiryDate);
+        }
+
+        // Função para iniciar timer de expiração
+        function startExpiryTimer(expiryDate) {
+            if (expiryInterval) clearInterval(expiryInterval);
+            
+            expiryInterval = setInterval(() => {
+                const now = Date.now();
+                const timeLeft = expiryDate - now;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(expiryInterval);
+                    document.getElementById('expiryTime').textContent = 'EXPIRADO';
+                    return;
+                }
+                
+                const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                
+                document.getElementById('expiryTime').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // Função para inicializar o mapa
+        function initializeMap(data) {
+            const entryGate = CONFIG.entryGates[data.entryGateId];
+            const destinationDock = CONFIG.destinationDocks[data.destinationDockId];
+            
+            if (!entryGate || !destinationDock) {
+                throw new Error('Portaria ou doca não encontrada na configuração');
+            }
+
+            // Usar coordenadas padrão se Azure Maps não estiver configurado
+            const useAzureMaps = CONFIG.azureMapsKey && CONFIG.azureMapsKey !== 'SUA_CHAVE_AZURE_MAPS_AQUI';
+            
+            if (useAzureMaps) {
+                // Inicializar Azure Maps
+                map = new atlas.Map('map', {
+                    center: [entryGate.coordinates.lng, entryGate.coordinates.lat],
+                    zoom: 15,
+                    language: 'pt-BR',
+                    authOptions: {
+                        authType: 'subscriptionKey',
+                        subscriptionKey: CONFIG.azureMapsKey
+                    }
+                });
+
+                map.events.add('ready', function () {
+                    // Adicionar marcadores
+                    const datasource = new atlas.source.DataSource();
+                    map.sources.add(datasource);
+
+                    // Marcador de origem
+                    datasource.add(new atlas.data.Feature(new atlas.data.Point([entryGate.coordinates.lng, entryGate.coordinates.lat]), {
+                        title: 'Origem: ' + entryGate.name,
+                        icon: 'pin-blue'
+                    }));
+
+                    // Marcador de destino
+                    datasource.add(new atlas.data.Feature(new atlas.data.Point([destinationDock.coordinates.lng, destinationDock.coordinates.lat]), {
+                        title: 'Destino: ' + destinationDock.name,
+                        icon: 'pin-red'
+                    }));
+
+                    // Adicionar camada de símbolos
+                    map.layers.add(new atlas.layer.SymbolLayer(datasource, null, {
+                        iconOptions: {
+                            allowOverlap: true
+                        },
+                        textOptions: {
+                            textField: ['get', 'title'],
+                            offset: [0, -2]
+                        }
+                    }));
+
+                    // Calcular rota
+                    calculateRoute(entryGate.coordinates, destinationDock.coordinates);
+                });
+            } else {
+                // Fallback para mapa simples sem Azure Maps
+                initializeSimpleMap(entryGate, destinationDock);
+            }
+        }
+
+        // Função para mapa simples (fallback)
+        function initializeSimpleMap(entryGate, destinationDock) {
+            const mapElement = document.getElementById('map');
+            mapElement.innerHTML = `
+                <div class="p-3 text-center bg-light">
+                    <h6>Rota Calculada</h6>
+                    <p><strong>Origem:</strong> ${entryGate.name}</p>
+                    <p><strong>Destino:</strong> ${destinationDock.name}</p>
+                    <p><small>Coordenadas: ${entryGate.coordinates.lat}, ${entryGate.coordinates.lng} → ${destinationDock.coordinates.lat}, ${destinationDock.coordinates.lng}</small></p>
+                    <div class="alert alert-info mt-3">
+                        <small>Para visualizar o mapa completo, configure sua chave do Azure Maps no arquivo config.js</small>
+                    </div>
+                </div>
+            `;
+            
+            // Simular cálculo de rota
+            const distance = calculateDistance(entryGate.coordinates, destinationDock.coordinates);
+            document.getElementById('totalDistance').textContent = distance.toFixed(2) + ' km';
+            document.getElementById('estimatedTime').textContent = Math.ceil(distance / 20) + ' minutos';
+            document.getElementById('instructions').innerHTML = `
+                <ol>
+                    <li>Siga em direção ao ${destinationDock.name}</li>
+                    <li>Mantenha-se na via principal</li>
+                    <li>Chegue ao destino</li>
+                </ol>
+            `;
+        }
+
+        // Função para calcular distância entre dois pontos
+        function calculateDistance(coord1, coord2) {
+            const R = 6371; // Raio da Terra em km
+            const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
+            const dLon = (coord2.lng - coord1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Função para calcular rota (Azure Maps)
+        function calculateRoute(origin, destination) {
+            const url = `https://atlas.microsoft.com/route/directions/json?subscription-key=${CONFIG.azureMapsKey}&api-version=1.0&query=${origin.lat},${origin.lng}:${destination.lat},${destination.lng}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.routes && data.routes.length > 0) {
+                        const route = data.routes[0];
+                        const summary = route.summary;
+                        
+                        document.getElementById('totalDistance').textContent = (summary.lengthInMeters / 1000).toFixed(2) + ' km';
+                        document.getElementById('estimatedTime').textContent = Math.ceil(summary.travelTimeInSeconds / 60) + ' minutos';
+                        
+                        // Adicionar linha da rota ao mapa
+                        const routeCoordinates = route.legs[0].points.map(point => [point.longitude, point.latitude]);
+                        const routeDataSource = new atlas.source.DataSource();
+                        map.sources.add(routeDataSource);
+                        routeDataSource.add(new atlas.data.Feature(new atlas.data.LineString(routeCoordinates)));
+                        
+                        map.layers.add(new atlas.layer.LineLayer(routeDataSource, null, {
+                            strokeColor: '#2272B9',
+                            strokeWidth: 5,
+                            lineJoin: 'round',
+                            lineCap: 'round'
+                        }));
+                        
+                        // Ajustar visualização para mostrar toda a rota
+                        map.setCamera({
+                            bounds: atlas.data.BoundingBox.fromData(new atlas.data.LineString(routeCoordinates)),
+                            padding: 50
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao calcular rota:', error);
+                    document.getElementById('totalDistance').textContent = 'Erro no cálculo';
+                    document.getElementById('estimatedTime').textContent = 'Erro no cálculo';
+                });
+        }
+
+        // Função para tentar carregar novamente
+        function retryLoad() {
+            location.reload();
+        }
+
+        // Função para voltar
+        function goBack() {
+            window.history.back();
+        }
+
+        // Inicialização principal
+        document.addEventListener('DOMContentLoaded', function() {
+            showSection('loadingSection');
+            
+            try {
+                routeData = decodeRouteData();
+                
+                if (isExpired(routeData)) {
+                    showSection('errorSection');
+                    return;
+                }
+                
+                populateRouteInfo(routeData);
+                initializeMap(routeData);
+                showSection('routeSection');
+                
+            } catch (error) {
+                console.error('Erro ao carregar rota:', error);
+                showSection('errorSection');
+            }
+        });
+    </script>
 </body>
 </html>
