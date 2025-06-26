@@ -5,7 +5,7 @@
 const AZURE_MAPS_CONFIG = {
     // IMPORTANTE: Substitua pela sua chave do Azure Maps
     // Obtenha em: https://portal.azure.com (Azure Maps Account > Authentication)
-    subscriptionKey: '6RSGmiu3ErhQYwneLdwQVDQ1FgBiyFotIKSxueUPU0oxaKM71PqIJQQJ99BFACrJL3J91W9IAAAgAZMP3zaY',
+    subscriptionKey: 'PKeeN2cnUSQ29AReHKNcNsCWr77UuDBEzoLLjE3jwZm9UDs8WBPYJQQJ99BFACrJL3J91W9IAAAgAZMPe30x',
 
     // Configurações de localização
     language: 'pt-BR',
