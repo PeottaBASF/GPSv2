@@ -1,7 +1,7 @@
 // Configuração do sistema
 const CONFIG = {
     // Chave do Azure Maps (substitua pela sua chave real)
-    azureMapsKey: 'SUA_CHAVE_AZURE_MAPS_AQUI',
+    azureMapsKey: '6RSGmiu3ErhQYwneLdwQVDQ1FgBiyFotIKSxueUPU0oxaKM71PqIJQQJ99BFACrJL3J91W9IAAAgAZMP3zaY',
     
     // Coordenadas fictícias para teste
     defaultCoordinates: {
